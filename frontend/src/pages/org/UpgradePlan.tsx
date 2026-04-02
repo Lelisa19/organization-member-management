@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import { Users, Zap, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import OrgAdminPageHeader from '../../components/org-admin/OrgAdminPageHeader';
 
 const UpgradePlan: React.FC = () => {
   const { user } = useAuth();
@@ -22,27 +23,43 @@ const UpgradePlan: React.FC = () => {
   const currentName = user?.plan?.name ?? 'Basic';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="space-y-10 font-poppins">
+      <OrgAdminPageHeader title="Upgrade Your Plan" subtitle="Choose the plan that fits your organization" />
+
       <div className="text-center">
-        <h1 className="text-3xl font-black text-gray-900">Upgrade Your Plan</h1>
-        <p className="text-gray-500 mt-2">Choose the plan that fits your organization</p>
+        <span className="inline-block rounded-full bg-indigo-100 px-4 py-1 text-xs font-bold text-indigo-800">
+          Personal
+        </span>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
         {list.map((plan: any) => {
           const isCurrent = plan.name === currentName;
           return (
             <div
               key={plan.id ?? plan.name}
-              className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 flex flex-col"
+              className={`bg-white rounded-2xl border p-8 flex flex-col shadow-sm ${
+                plan.name === 'Pro' ? 'ring-2 ring-indigo-500 border-indigo-200 scale-[1.02] z-10' : 'border-gray-200'
+              }`}
             >
+              {plan.name === 'Pro' && (
+                <div className="text-center -mt-2 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">
+                    Most popular
+                  </span>
+                </div>
+              )}
               <h2 className="text-xl font-black text-gray-900">{plan.name}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                {plan.name === 'Basic' ? 'Free forever plan' : `${plan.billing_cycle ?? 'monthly'} plan`}
+                {plan.name === 'Basic'
+                  ? 'Free forever plan'
+                  : plan.name === 'Enterprise'
+                    ? 'Yearly plan'
+                    : 'Monthly plan'}
               </p>
               <p className="text-3xl font-black text-gray-900 mt-4">
                 ${Number(plan.price).toFixed(2)}
-                <span className="text-base font-semibold text-gray-500">/month</span>
+                <span className="text-base font-semibold text-gray-500"> /month</span>
               </p>
               <ul className="mt-6 space-y-3 text-sm text-gray-600 flex-1">
                 <li className="flex items-center gap-2">
@@ -63,9 +80,9 @@ const UpgradePlan: React.FC = () => {
               ) : (
                 <button
                   type="button"
-                  className="mt-8 w-full py-3 rounded-full bg-sky-600 text-white font-bold hover:bg-sky-500 transition-colors"
+                  className="mt-8 w-full py-3.5 rounded-full bg-indigo-600 text-white font-bold hover:bg-indigo-500 transition-colors shadow-md"
                 >
-                  Get {plan.name}
+                  {plan.name === 'Enterprise' ? 'Get Enterprise' : plan.name === 'Pro' ? 'Get Pro' : `Get ${plan.name}`}
                 </button>
               )}
             </div>

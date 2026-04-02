@@ -30,21 +30,21 @@ const LegacyDashboardRedirect: React.FC = () => {
     return <Navigate to={map[rest] ?? '/super-admin'} replace />;
   }
 
-  if (role === 'organAdmin') {
+  if (role === 'orgAdmin') {
     const map: Record<string, string> = {
-      '/': '/org',
-      '/members': '/org/members',
-      '/events': '/org/events',
-      '/blogs': '/org/blogs',
-      '/payments': '/org/payments',
-      '/profile': '/org/profile',
+      '/': '/org-admin/dashboard',
+      '/members': '/org-admin/members',
+      '/events': '/org-admin/events',
+      '/blogs': '/org-admin/blogs',
+      '/payments': '/org-admin/payments',
+      '/profile': '/org-admin/profile',
       '/admin/organizations': '/super-admin/organizations',
     };
-    return <Navigate to={map[rest] ?? '/org'} replace />;
+    return <Navigate to={map[rest] ?? '/org-admin/dashboard'} replace />;
   }
 
   const map: Record<string, string> = {
-    '/': '/member',
+    '/': '/member/dashboard',
     '/members': '/member/profile',
     '/events': '/member/events',
     '/blogs': '/member/blog',

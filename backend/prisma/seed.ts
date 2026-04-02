@@ -1,9 +1,44 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v?.trim()) {
+    throw new Error(
+      `Missing ${name}. Add it to backend/.env (see .env.example). Required to run prisma seed.`,
+    );
+  }
+  return v.trim();
+}
+
 async function main() {
+  await prisma.$executeRawUnsafe(
+    `UPDATE users SET role = 'orgAdmin' WHERE role = 'organAdmin'`,
+  );
+
+  const superEmail =
+    process.env.SEED_SUPERADMIN_EMAIL?.trim() || 'owner@omms.com';
+  const superPassword = requireEnv('SEED_SUPERADMIN_PASSWORD');
+  const superPasswordHash = await bcrypt.hash(superPassword, 10);
+
+  await prisma.user.upsert({
+    where: { email: superEmail },
+    update: {
+      password: superPasswordHash,
+      role: 'SuperAdmin',
+    },
+    create: {
+      name: 'Platform Owner',
+      email: superEmail,
+      password: superPasswordHash,
+      role: 'SuperAdmin',
+    },
+  });
+  console.log('SuperAdmin ready:', superEmail, '(password from SEED_SUPERADMIN_PASSWORD)');
+
   const planCount = await prisma.plan.count();
   if (planCount === 0) {
     const plans = [
@@ -17,8 +52,20 @@ async function main() {
     console.log('Plans seeded');
   }
 
-  const demoEmail = 'admin@membershippro.demo';
-  const hashedPassword = await bcrypt.hash('Demo123!', 10);
+  const demoEmail =
+    process.env.SEED_DEMO_ORG_ADMIN_EMAIL?.trim() ||
+    'admin@membershippro.demo';
+  const demoPassword = requireEnv('SEED_DEMO_ORG_ADMIN_PASSWORD');
+  const hashedPassword = await bcrypt.hash(demoPassword, 10);
+
+  const orgName = 'MemberShip Pro Demo';
+  const orgType = 'Membership organization';
+  let demoOrg = await prisma.organization.findFirst({ where: { name: orgName } });
+  if (!demoOrg) {
+    demoOrg = await prisma.organization.create({
+      data: { name: orgName, type: orgType },
+    });
+  }
 
   const user = await prisma.user.upsert({
     where: { email: demoEmail },
@@ -26,12 +73,33 @@ async function main() {
       name: 'Demo Admin',
       email: demoEmail,
       password: hashedPassword,
-      role: 'organAdmin',
-      organization_name: 'MemberShip Pro Demo',
-      organization_type: 'Membership organization',
+      role: 'orgAdmin',
+      organizationId: demoOrg.id,
+      organization_name: demoOrg.name,
+      organization_type: demoOrg.type,
     },
-    update: {},
+    update: {
+      password: hashedPassword,
+      organizationId: demoOrg.id,
+      organization_name: demoOrg.name,
+      organization_type: demoOrg.type,
+      role: 'orgAdmin',
+    },
   });
+
+  const notifRows = await prisma.$queryRaw<{ n: bigint }[]>`
+    SELECT COUNT(*) AS n FROM notifications WHERE userId = ${user.id}
+  `;
+  const notifCount = Number(notifRows[0]?.n ?? 0);
+  if (notifCount === 0) {
+    await prisma.$executeRaw`
+      INSERT INTO notifications (userId, title, read) VALUES
+      (${user.id}, ${'New member registration pending review'}, ${false}),
+      (${user.id}, ${'Event "Annual Member Summit" is in 2 weeks'}, ${false}),
+      (${user.id}, ${'Payment received for Pro plan'}, ${true})
+    `;
+    console.log('Sample notifications seeded for demo org admin');
+  }
 
   const blogCount = await prisma.blog.count();
   if (blogCount === 0) {
@@ -81,6 +149,7 @@ async function main() {
           content: b.content,
           image: b.image,
           author_id: user.id,
+          organizationId: demoOrg.id,
         },
       });
     }
@@ -144,13 +213,16 @@ async function main() {
           location: e.location,
           date: new Date(base + e.daysFromNow * 86400000),
           image: e.image,
+          organizationId: demoOrg.id,
         },
       });
     }
     console.log('Sample events seeded');
   }
 
-  console.log('Seed finished. Demo login:', demoEmail, '/ Demo123!');
+  console.log('Seed finished.');
+  console.log('  SuperAdmin:', superEmail, '(SEED_SUPERADMIN_PASSWORD)');
+  console.log('  Demo org admin:', demoEmail, '(SEED_DEMO_ORG_ADMIN_PASSWORD)');
 }
 
 main()

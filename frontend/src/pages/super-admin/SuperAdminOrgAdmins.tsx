@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import { Search, Plus, Download, MoreHorizontal } from 'lucide-react';
 
-/** Org admins list — uses organAdmin users from members API pattern until dedicated endpoint exists */
+/** Org admins list — uses orgAdmin users from members API pattern until dedicated endpoint exists */
 const SuperAdminOrgAdmins: React.FC = () => {
   const [q, setQ] = useState('');
   const { data: users, isLoading } = useQuery({
@@ -11,7 +11,7 @@ const SuperAdminOrgAdmins: React.FC = () => {
     queryFn: () => api.get('/members').then((r) => r.data),
   });
 
-  const admins = (users ?? []).filter((u: any) => u.role === 'organAdmin');
+  const admins = (users ?? []).filter((u: any) => u.role === 'orgAdmin');
   const filtered = admins.filter(
     (u: any) =>
       !q.trim() ||

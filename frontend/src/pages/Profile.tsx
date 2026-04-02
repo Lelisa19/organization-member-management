@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { User as UserIcon, Mail, Phone, MapPin, Building, Briefcase, Camera, Save } from 'lucide-react';
+import OrgAdminPageHeader from '../components/org-admin/OrgAdminPageHeader';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const isOrgProfile =
+    pathname.startsWith('/org-admin/profile') || pathname.startsWith('/org/profile');
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -39,9 +44,16 @@ const Profile: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 font-poppins">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-black text-brand-dark tracking-tight">Account Settings</h1>
-      </div>
+      {isOrgProfile ? (
+        <OrgAdminPageHeader
+          title="Membership Profile"
+          subtitle="View and edit your account information"
+        />
+      ) : (
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-black text-brand-dark tracking-tight">Account Settings</h1>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Sidebar Info */}
@@ -178,7 +190,7 @@ const Profile: React.FC = () => {
                       </>
                     )}
 
-                    {(user?.role === 'organAdmin' || user?.role === 'SuperAdmin') && (
+                    {(user?.role === 'orgAdmin' || user?.role === 'SuperAdmin') && (
                       <>
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-brand-deep uppercase tracking-widest ml-1 opacity-50 flex items-center space-x-2">

@@ -40,6 +40,7 @@ import Services from './pages/Services';
 import Contact from './pages/Contact';
 import PublicEvents from './pages/PublicEvents';
 import PublicBlogs from './pages/PublicBlogs';
+import { OrgLegacyRedirect, OrganAdminLegacyRedirect } from './components/OrgPathRedirects';
 
 const queryClient = new QueryClient();
 
@@ -85,15 +86,18 @@ const App: React.FC = () => {
               <Route path="system-config" element={<SystemConfig />} />
             </Route>
 
+            <Route path="/organadmin/*" element={<OrganAdminLegacyRedirect />} />
+
             <Route
-              path="/org"
+              path="/org-admin"
               element={
-                <PrivateRoute roles={['organAdmin']}>
+                <PrivateRoute roles={['orgAdmin']}>
                   <OrgAdminLayout />
                 </PrivateRoute>
               }
             >
-              <Route index element={<Dashboard />} />
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="members" element={<Members />} />
               <Route path="events" element={<Events />} />
               <Route path="blogs" element={<Blogs />} />
@@ -103,6 +107,8 @@ const App: React.FC = () => {
               <Route path="settings" element={<OrgSettings />} />
             </Route>
 
+            <Route path="/org/*" element={<OrgLegacyRedirect />} />
+
             <Route
               path="/member"
               element={
@@ -111,7 +117,8 @@ const App: React.FC = () => {
                 </PrivateRoute>
               }
             >
-              <Route index element={<MemberOverview />} />
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<MemberOverview />} />
               <Route path="profile" element={<Profile />} />
               <Route path="events" element={<MemberEvents />} />
               <Route path="blog" element={<MemberBlog />} />

@@ -19,11 +19,11 @@ const GuestNavbar: React.FC = () => {
       <Link to="/about" className={navLinkClass} onClick={() => setOpen(false)}>
         About
       </Link>
-      <Link to="/#features" className={navLinkClass} onClick={() => setOpen(false)}>
-        Features
+      <Link to="/services" className={navLinkClass} onClick={() => setOpen(false)}>
+        Services
       </Link>
-      <Link to="/#pricing" className={navLinkClass} onClick={() => setOpen(false)}>
-        Pricing
+      <Link to="/events" className={navLinkClass} onClick={() => setOpen(false)}>
+        Events
       </Link>
       <Link to="/blogs" className={navLinkClass} onClick={() => setOpen(false)}>
         Blog
@@ -77,7 +77,7 @@ const GuestNavbar: React.FC = () => {
               type="button"
               className="lg:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100"
               aria-label={open ? 'Close menu' : 'Open menu'}
-              onClick={() => setOpen((v) => !v)}
+              onClick={() => setOpen((prev) => !prev)}
             >
               {open ? <X size={24} /> : <Menu size={24} />}
             </button>

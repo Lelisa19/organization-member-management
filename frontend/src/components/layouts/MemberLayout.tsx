@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 const nav = [
-  { to: '/member', label: 'Overview', icon: LayoutGrid, end: true },
+  { to: '/member/dashboard', label: 'Overview', icon: LayoutGrid, end: true },
   { to: '/member/profile', label: 'Profile', icon: User },
   { to: '/member/events', label: 'Events', icon: Calendar },
   { to: '/member/blog', label: 'Blog', icon: FileText },
