@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { User, Plan } from '../types';
 import { Plus, Search, Filter, MoreVertical, Edit2, Trash2, X, Building, Mail, User as UserIcon } from 'lucide-react';
+import useBodyScrollLock from '../hooks/useBodyScrollLock';
 
 const AdminOrganizations: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +17,7 @@ const AdminOrganizations: React.FC = () => {
     organization_type: 'business',
     plan_id: '',
   });
+  useBodyScrollLock(isModalOpen);
 
   const queryClient = useQueryClient();
 
@@ -199,13 +201,13 @@ const AdminOrganizations: React.FC = () => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-bold">{editingOrg ? 'Edit Organization' : 'Add New Organization'}</h3>
               <button onClick={closeModal} title="Close"><X size={20} /></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1">
               <div className="space-y-4">
                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b pb-2">Organization Details</p>
                  <div>
