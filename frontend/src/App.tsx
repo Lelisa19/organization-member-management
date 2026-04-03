@@ -1,8 +1,20 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Layout from './components/Layout';
+import { AuthProvider } from './context/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
+import LegacyDashboardRedirect from './components/LegacyDashboardRedirect';
+
+import SuperAdminLayout from './components/layouts/SuperAdminLayout';
+import OrgAdminLayout from './components/layouts/OrgAdminLayout';
+import MemberLayout from './components/layouts/MemberLayout';
+
+import SuperAdminDashboard from './pages/super-admin/SuperAdminDashboard';
+import SuperAdminOrgAdmins from './pages/super-admin/SuperAdminOrgAdmins';
+import SuperAdminMembers from './pages/super-admin/SuperAdminMembers';
+import SuperAdminPayments from './pages/super-admin/SuperAdminPayments';
+import SystemConfig from './pages/super-admin/SystemConfig';
+
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -14,23 +26,23 @@ import Blogs from './pages/Blogs';
 import Payments from './pages/Payments';
 import Profile from './pages/Profile';
 import AdminOrganizations from './pages/AdminOrganizations';
+import UpgradePlan from './pages/org/UpgradePlan';
+import OrgSettings from './pages/org/OrgSettings';
+
+import MemberOverview from './pages/member/MemberOverview';
+import MemberEvents from './pages/member/MemberEvents';
+import MemberBlog from './pages/member/MemberBlog';
+import MemberPayments from './pages/member/MemberPayments';
+
 import Home from './pages/Home';
 import About from './pages/About';
 import Services from './pages/Services';
 import Contact from './pages/Contact';
 import PublicEvents from './pages/PublicEvents';
 import PublicBlogs from './pages/PublicBlogs';
+import { OrgLegacyRedirect, OrganAdminLegacyRedirect } from './components/OrgPathRedirects';
 
 const queryClient = new QueryClient();
-
-const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (!user) return <Navigate to="/login" />;
-
-  return <>{children}</>;
-};
 
 const App: React.FC = () => {
   return (
@@ -38,7 +50,6 @@ const App: React.FC = () => {
       <AuthProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
-            {/* Guest Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/services" element={<Services />} />
@@ -50,25 +61,70 @@ const App: React.FC = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Authenticated Routes */}
             <Route
-              path="/dashboard"
+              path="/dashboard/*"
               element={
                 <PrivateRoute>
-                  <Layout />
+                  <LegacyDashboardRedirect />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/super-admin"
+              element={
+                <PrivateRoute roles={['SuperAdmin']}>
+                  <SuperAdminLayout />
                 </PrivateRoute>
               }
             >
-              <Route index element={<Dashboard />} />
+              <Route index element={<SuperAdminDashboard />} />
+              <Route path="organizations" element={<AdminOrganizations />} />
+              <Route path="org-admins" element={<SuperAdminOrgAdmins />} />
+              <Route path="members" element={<SuperAdminMembers />} />
+              <Route path="payments" element={<SuperAdminPayments />} />
+              <Route path="system-config" element={<SystemConfig />} />
+            </Route>
+
+            <Route path="/organadmin/*" element={<OrganAdminLegacyRedirect />} />
+
+            <Route
+              path="/org-admin"
+              element={
+                <PrivateRoute roles={['orgAdmin']}>
+                  <OrgAdminLayout />
+                </PrivateRoute>
+              }
+            >
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="members" element={<Members />} />
               <Route path="events" element={<Events />} />
               <Route path="blogs" element={<Blogs />} />
               <Route path="payments" element={<Payments />} />
               <Route path="profile" element={<Profile />} />
-              <Route path="admin/organizations" element={<AdminOrganizations />} />
+              <Route path="upgrade" element={<UpgradePlan />} />
+              <Route path="settings" element={<OrgSettings />} />
             </Route>
 
-            {/* Fallback */}
+            <Route path="/org/*" element={<OrgLegacyRedirect />} />
+
+            <Route
+              path="/member"
+              element={
+                <PrivateRoute roles={['member']}>
+                  <MemberLayout />
+                </PrivateRoute>
+              }
+            >
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<MemberOverview />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="events" element={<MemberEvents />} />
+              <Route path="blog" element={<MemberBlog />} />
+              <Route path="payments" element={<MemberPayments />} />
+            </Route>
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

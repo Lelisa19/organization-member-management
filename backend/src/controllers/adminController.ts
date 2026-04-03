@@ -11,7 +11,7 @@ export const getOrganizations = async (req: any, res: Response) => {
 
   try {
     const organizations = await prisma.user.findMany({
-      where: { role: 'organAdmin' },
+      where: { role: 'orgAdmin' },
       include: { plan: true, members: true },
     });
     res.status(200).json(organizations);
@@ -36,7 +36,7 @@ export const createOrganization = async (req: any, res: Response) => {
         password: hashedPassword,
         organization_name,
         organization_type,
-        role: 'organAdmin',
+        role: 'orgAdmin',
         plan_id: plan_id ? parseInt(plan_id) : undefined,
       },
     });

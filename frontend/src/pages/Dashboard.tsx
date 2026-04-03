@@ -1,152 +1,199 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import { Users, Calendar, BookOpen, CreditCard, TrendingUp, AlertCircle } from 'lucide-react';
+import { Users, Calendar, FileText, CreditCard, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import OrgAdminPageHeader from '../components/org-admin/OrgAdminPageHeader';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
 
   const { data: dashboardData, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
-    queryFn: () => api.get('/dashboard/stats').then(res => res.data),
+    queryFn: () => api.get('/dashboard/stats').then((res) => res.data),
   });
 
-  const { data: members, isLoading: membersLoading } = useQuery({
+  const { data: members } = useQuery({
     queryKey: ['members'],
-    queryFn: () => api.get('/members').then(res => res.data),
-    enabled: user?.role === 'organAdmin' || user?.role === 'SuperAdmin',
+    queryFn: () => api.get('/members').then((res) => res.data),
+    enabled: user?.role === 'orgAdmin' || user?.role === 'SuperAdmin',
   });
 
-  const { data: events, isLoading: eventsLoading } = useQuery({
+  const { data: events } = useQuery({
     queryKey: ['events'],
-    queryFn: () => api.get('/events').then(res => res.data),
-    enabled: user?.role === 'organAdmin' || user?.role === 'member',
+    queryFn: () => api.get('/events').then((res) => res.data),
+    enabled: user?.role === 'orgAdmin' || user?.role === 'member',
   });
 
-  const getIcon = (label: string) => {
-    switch (label) {
-      case 'Total Organizations':
-      case 'Total Members': return <Users className="text-brand-medium" />;
-      case 'Upcoming Events': return <Calendar className="text-brand-medium" />;
-      case 'Recent Blogs': return <BookOpen className="text-brand-medium" />;
-      case 'Total Revenue': return <CreditCard className="text-brand-medium" />;
-      default: return <TrendingUp className="text-brand-deep" />;
-    }
-  };
+  const { data: blogs } = useQuery({
+    queryKey: ['blogs'],
+    queryFn: () => api.get('/blogs').then((res) => res.data),
+    enabled: user?.role === 'orgAdmin',
+  });
 
-  const getBg = (label: string) => {
-    switch (label) {
-      case 'Total Organizations':
-      case 'Total Members':
-      case 'Upcoming Events':
-      case 'Recent Blogs':
-      case 'Total Revenue': return 'bg-brand-pale/20';
-      default: return 'bg-gray-50';
-    }
-  };
+  const { data: payments } = useQuery({
+    queryKey: ['payments'],
+    queryFn: () => api.get('/payments').then((res) => res.data),
+    enabled: user?.role === 'orgAdmin',
+  });
+
+  const statsCards = useMemo(() => {
+    const stats = dashboardData?.stats ?? [];
+    const find = (needle: string) =>
+      stats.find((s: { label: string }) => s.label?.toLowerCase().includes(needle.toLowerCase()));
+    const memberVal = find('member')?.value ?? members?.length ?? '—';
+    const eventVal = find('event')?.value ?? events?.length ?? '—';
+    const blogVal = find('blog')?.value ?? blogs?.length ?? '—';
+    const paidSum =
+      payments?.reduce((a: number, p: { amount?: number }) => a + (p.amount || 0), 0) ?? 0;
+
+    return [
+      {
+        label: 'Total Members',
+        value: String(memberVal),
+        sub: <span className="text-emerald-600 font-semibold">↑ +12 this month</span>,
+        icon: Users,
+      },
+      {
+        label: 'Active Events',
+        value: String(eventVal),
+        sub: <span className="text-gray-500">upcoming this week</span>,
+        icon: Calendar,
+      },
+      {
+        label: 'Total blogs',
+        value: String(blogVal),
+        sub: <span className="text-rose-600 font-semibold">+12 Blogs</span>,
+        icon: FileText,
+      },
+      {
+        label: 'Total Paid Payments',
+        value: `ETB ${paidSum.toLocaleString()}`,
+        sub: <span className="text-rose-600 font-semibold">Total paid this week</span>,
+        icon: CreditCard,
+      },
+    ];
+  }, [dashboardData, members, events, blogs, payments]);
+
+  const upcoming = events?.slice(0, 3) ?? [];
+  const firstEvent = upcoming[0];
 
   return (
-    <div className="space-y-6 font-poppins">
-      {/* Plan Warning for organAdmin/member */}
+    <div className="space-y-8 font-poppins">
+      <OrgAdminPageHeader title="Dashboard" />
+
       {user?.role !== 'SuperAdmin' && dashboardData?.expiry && (
-        <div className="bg-brand-pale/30 border-l-4 border-brand-medium p-5 rounded-r-2xl flex items-center justify-between shadow-sm">
-          <div className="flex items-center">
-            <AlertCircle className="text-brand-medium mr-4" />
-            <div>
-              <p className="text-sm text-brand-dark font-bold">
-                Your <span className="text-brand-medium">{dashboardData.plan?.name}</span> plan expires on {new Date(dashboardData.expiry).toLocaleDateString()}
-              </p>
-            </div>
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-indigo-600 shrink-0" size={22} />
+            <p className="text-sm text-gray-800 font-semibold">
+              Your{' '}
+              <span className="text-indigo-600">{dashboardData.plan?.name}</span> plan expires on{' '}
+              {new Date(dashboardData.expiry).toLocaleDateString()}
+            </p>
           </div>
-          <button className="bg-brand-medium text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-brand-light transition-all">Upgrade Plan</button>
+          <Link
+            to="/org-admin/upgrade"
+            className="inline-flex justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 transition-colors"
+          >
+            Upgrade Plan
+          </Link>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsLoading ? (
-           [1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-gray-100 animate-pulse rounded-2xl"></div>)
-        ) : (
-          dashboardData?.stats.map((stat: any, index: number) => (
-            <div key={index} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4 hover:shadow-md transition-shadow">
-              <div className={`p-4 rounded-xl ${getBg(stat.label)}`}>
-                {getIcon(stat.label)}
+      {statsLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-2xl bg-white border border-gray-100 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          {statsCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={card.label}
+                className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex items-start justify-between gap-4"
+              >
+                <div>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">{card.label}</p>
+                  <p className="text-3xl font-black text-gray-900 mt-2">{card.value}</p>
+                  <div className="text-xs mt-2">{card.sub}</div>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                  <Icon size={22} strokeWidth={2} />
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-brand-deep font-black uppercase tracking-widest">{stat.label}</p>
-                <h3 className="text-2xl font-black text-brand-dark">{stat.value}</h3>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Members (Only for Admins) */}
-        {(user?.role === 'organAdmin' || user?.role === 'SuperAdmin') && (
-          <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-black text-brand-dark tracking-tight">Recent Members</h3>
-              <button className="text-brand-medium text-sm font-bold hover:underline uppercase tracking-widest">View All</button>
-            </div>
-            {membersLoading ? (
-              <div className="animate-pulse space-y-4">
-                {[1, 2, 3].map(i => <div key={i} className="h-12 bg-gray-50 rounded-xl"></div>)}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {members?.slice(0, 5).map((member: any) => (
-                  <div key={member.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
-                    <div className="flex items-center space-x-4">
-                      <img src={`https://ui-avatars.com/api/?name=${member.name}&background=ecf39e&color=132a13`} alt="" className="w-12 h-12 rounded-xl shadow-sm" />
-                      <div>
-                        <p className="text-sm font-bold text-brand-dark">{member.name}</p>
-                        <p className="text-xs text-brand-deep font-medium">{member.email}</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black text-brand-medium uppercase bg-brand-pale/30 px-2 py-1 rounded-lg">{member.role}</span>
-                  </div>
-                ))}
-                {(!members || members.length === 0) && (
-                  <p className="text-sm text-gray-500 text-center py-8">No members found</p>
-                )}
-              </div>
-            )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold text-gray-900">Upcoming Events</h2>
+            <Link to="/org-admin/events" className="text-sm font-bold text-indigo-600 hover:underline">
+              View All
+            </Link>
           </div>
-        )}
-
-        {/* Upcoming Events (For everyone) */}
-        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-xl font-black text-brand-dark tracking-tight">Upcoming Events</h3>
-            <button className="text-brand-medium text-sm font-bold hover:underline uppercase tracking-widest">Explore</button>
-          </div>
-          {eventsLoading ? (
-            <div className="animate-pulse space-y-4">
-              {[1, 2, 3].map(i => <div key={i} className="h-12 bg-gray-50 rounded-xl"></div>)}
+          <p className="text-sm text-gray-500 mb-6">
+            You have {events?.length ?? 0} event{(events?.length ?? 0) === 1 ? '' : 's'} scheduled this
+            week:
+          </p>
+          {firstEvent ? (
+            <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-5">
+              <p className="text-sm text-gray-600">
+                Tomorrow {new Date(firstEvent.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{' '}
+                — <span className="font-bold text-gray-900">{firstEvent.title}</span>
+              </p>
+              <div className="flex flex-wrap gap-3 mt-5">
+                <button
+                  type="button"
+                  className="rounded-xl border-2 border-gray-200 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                >
+                  Details
+                </button>
+                <button
+                  type="button"
+                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-500"
+                >
+                  Confirm Venue
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {events?.slice(0, 5).map((event: any) => (
-                <div key={event.id} className="flex items-center space-x-5 p-4 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
-                  <div className="bg-brand-pale/30 text-brand-medium p-3 rounded-xl text-center min-w-[60px] shadow-sm border border-brand-pale/50">
-                    <p className="text-[10px] font-black uppercase tracking-tighter">{new Date(event.date).toLocaleDateString('en-US', { month: 'short' })}</p>
-                    <p className="text-xl font-black leading-none">{new Date(event.date).getDate()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-brand-dark">{event.title}</p>
-                    <p className="text-xs text-brand-deep font-medium flex items-center">
-                      <span className="w-1.5 h-1.5 bg-brand-medium rounded-full mr-2"></span>
-                      {event.location}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {(!events || events.length === 0) && (
-                <p className="text-sm text-gray-500 text-center py-8">No upcoming events</p>
-              )}
-            </div>
+            <p className="text-sm text-gray-500">No upcoming events.</p>
           )}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-lg font-bold text-gray-900">Reminders</h2>
+            <span className="rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-0.5">
+              5
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mb-6">Items requiring your attention</p>
+          <div className="rounded-xl border border-gray-100 p-4">
+            <div className="flex gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                b
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-gray-900">Blog Post Review</p>
+                <p className="text-sm text-gray-500 mt-1">Review and publish quarterly update post</p>
+                <button
+                  type="button"
+                  className="mt-4 w-full sm:w-auto rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-500"
+                >
+                  Review Post
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

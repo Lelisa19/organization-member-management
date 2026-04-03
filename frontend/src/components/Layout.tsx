@@ -14,13 +14,13 @@ const Layout: React.FC = () => {
   };
 
   const navItems = [
-    { icon: <LayoutDashboard size={20} />, label: 'Overview', path: '/dashboard', roles: ['organAdmin', 'member', 'SuperAdmin'] },
+    { icon: <LayoutDashboard size={20} />, label: 'Overview', path: '/dashboard', roles: ['orgAdmin', 'member', 'SuperAdmin'] },
     { icon: <Users size={20} />, label: 'Organizations', path: '/dashboard/admin/organizations', roles: ['SuperAdmin'] },
-    { icon: <Users size={20} />, label: 'Members', path: '/dashboard/members', roles: ['organAdmin', 'SuperAdmin'] },
-    { icon: <Calendar size={20} />, label: 'Events', path: '/dashboard/events', roles: ['organAdmin', 'member'] },
-    { icon: <BookOpen size={20} />, label: 'Blogs', path: '/dashboard/blogs', roles: ['organAdmin', 'member'] },
-    { icon: <CreditCard size={20} />, label: 'Payments', path: '/dashboard/payments', roles: ['organAdmin', 'SuperAdmin'] },
-    { icon: <UserIcon size={20} />, label: 'Profile', path: '/dashboard/profile', roles: ['organAdmin', 'member', 'SuperAdmin'] },
+    { icon: <Users size={20} />, label: 'Members', path: '/dashboard/members', roles: ['orgAdmin', 'SuperAdmin'] },
+    { icon: <Calendar size={20} />, label: 'Events', path: '/dashboard/events', roles: ['orgAdmin', 'member'] },
+    { icon: <BookOpen size={20} />, label: 'Blogs', path: '/dashboard/blogs', roles: ['orgAdmin', 'member'] },
+    { icon: <CreditCard size={20} />, label: 'Payments', path: '/dashboard/payments', roles: ['orgAdmin', 'SuperAdmin'] },
+    { icon: <UserIcon size={20} />, label: 'Profile', path: '/dashboard/profile', roles: ['orgAdmin', 'member', 'SuperAdmin'] },
   ];
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(user?.role || ''));

@@ -2,7 +2,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'guest' | 'member' | 'organAdmin' | 'SuperAdmin';
+  role: 'guest' | 'member' | 'orgAdmin' | 'SuperAdmin';
   organization_name?: string;
   organization_type?: string;
   profile_photo_path?: string;

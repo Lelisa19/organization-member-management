@@ -1,23 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { Event } from '../types';
-import { Plus, Search, Calendar as CalendarIcon, MapPin, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  X,
+  List,
+  Calendar as CalendarIcon,
+  Download,
+  Filter,
+  MoreVertical,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import OrgAdminPageHeader from '../components/org-admin/OrgAdminPageHeader';
+
+const PAGE_SIZE = 6;
 
 const Events: React.FC = () => {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'orgAdmin' || user?.role === 'SuperAdmin';
+  const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [formData, setFormData] = useState({ title: '', description: '', date: '', location: '', image: '' });
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    date: '',
+    location: '',
+    image: '',
+  });
 
   const queryClient = useQueryClient();
 
-  const isAdmin = user?.role === 'organAdmin' || user?.role === 'SuperAdmin';
-
   const { data: events, isLoading } = useQuery<Event[]>({
     queryKey: ['events'],
-    queryFn: () => api.get('/events').then(res => res.data),
+    queryFn: () => api.get('/events').then((res) => res.data),
   });
 
   const createMutation = useMutation({
@@ -38,10 +60,27 @@ const Events: React.FC = () => {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/events/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['events'] }),
   });
+
+  const filtered = useMemo(() => {
+    const list = events ?? [];
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(
+      (e) =>
+        e.title.toLowerCase().includes(q) ||
+        (e.description && e.description.toLowerCase().includes(q)) ||
+        (e.location && e.location.toLowerCase().includes(q))
+    );
+  }, [events, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const paged = useMemo(() => {
+    const start = (pageSafe - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, pageSafe]);
 
   const openModal = (event?: Event) => {
     if (event) {
@@ -51,7 +90,7 @@ const Events: React.FC = () => {
         description: event.description,
         date: new Date(event.date).toISOString().split('T')[0],
         location: event.location || '',
-        image: event.image || ''
+        image: event.image || '',
       });
     } else {
       setEditingEvent(null);
@@ -75,147 +114,303 @@ const Events: React.FC = () => {
     }
   };
 
-  return (
-    <div className="space-y-6 font-poppins">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-black text-brand-dark tracking-tight">Events</h1>
-        {isAdmin && (
+  /** Placeholder attendees — API has no capacity field yet */
+  const attendeesRatio = (_: Event, index: number) => {
+    const cur = 25;
+    const max = 50;
+    return { cur, max, pct: 50 + (index % 2) * 10 };
+  };
+
+  const listBody = (
+    <>
+      <div className="p-4 md:p-5 border-b border-gray-100 flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+        <div className="flex rounded-xl border border-gray-200 p-1 bg-gray-50 w-fit">
           <button
-            onClick={() => openModal()}
-            className="bg-brand-medium text-white px-5 py-2.5 rounded-2xl flex items-center space-x-2 hover:bg-brand-light transition-all shadow-lg shadow-brand-medium/20 font-bold"
+            type="button"
+            onClick={() => setView('list')}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold ${
+              view === 'list' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'
+            }`}
           >
-            <Plus size={20} />
-            <span>Add Event</span>
+            <List size={16} />
+            List View
           </button>
-        )}
+          <button
+            type="button"
+            onClick={() => setView('calendar')}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold ${
+              view === 'calendar'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-gray-600 hover:bg-white'
+            }`}
+          >
+            <CalendarIcon size={16} />
+            Calendar View
+          </button>
+        </div>
+        <div className="flex flex-1 flex-col sm:flex-row gap-3 sm:items-center sm:justify-end">
+          <div className="relative flex-1 min-w-0 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="search"
+              placeholder="Search events..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700"
+            >
+              <Download size={16} />
+              Export
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700"
+            >
+              <Filter size={16} />
+              Filter
+            </button>
+          </div>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-           {[1, 2, 3].map(i => <div key={i} className="h-64 bg-gray-100 animate-pulse rounded-[2rem]"></div>)}
+      {view === 'calendar' ? (
+        <div className="p-10 text-center text-gray-500 text-sm">
+          Calendar view: switch to <strong>List View</strong> for full table management. (Connect a calendar
+          component here later.)
         </div>
-      ) : events?.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-brand-pale/50">
-           <CalendarIcon className="mx-auto text-brand-pale mb-4" size={64} />
-           <p className="text-brand-deep font-bold text-lg">No events found. Start by creating one!</p>
-        </div>
+      ) : isLoading ? (
+        <div className="p-12 text-center text-gray-400">Loading events...</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {events?.map((event) => (
-            <div key={event.id} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
-              <div className="relative h-48 overflow-hidden">
-                {event.image ? (
-                  <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50/80 text-gray-500 text-[11px] font-bold uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3">Event</th>
+                  <th className="px-4 py-3 whitespace-nowrap">Date &amp; Time</th>
+                  <th className="px-4 py-3">Location</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 min-w-[140px]">Attendees</th>
+                  <th className="px-4 py-3 w-12">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paged.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                      No events found
+                    </td>
+                  </tr>
                 ) : (
-                  <div className="w-full h-full bg-brand-pale/10 flex items-center justify-center">
-                    <CalendarIcon size={48} className="text-brand-medium/20" />
-                  </div>
+                  paged.map((event, idx) => {
+                    const { cur, max, pct } = attendeesRatio(event, idx);
+                    return (
+                      <tr key={event.id} className="hover:bg-gray-50/80">
+                        <td className="px-4 py-4">
+                          <p className="font-bold text-gray-900">{event.title}</p>
+                          {event.description ? (
+                            <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{event.description}</p>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-4 text-gray-700 whitespace-nowrap font-mono text-xs">
+                          {new Date(event.date).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-4 text-gray-700">{event.location || '—'}</td>
+                        <td className="px-4 py-4">
+                          <span className="inline-flex rounded-full bg-sky-50 px-3 py-0.5 text-xs font-semibold text-sky-700 border border-sky-100">
+                            draft
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-2 rounded-full bg-gray-100 overflow-hidden mb-1">
+                            <div
+                              className="h-full rounded-full bg-indigo-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {cur}/{max}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1">
+                            {isAdmin && (
+                              <>
+                                <button
+                                  type="button"
+                                  title="Edit"
+                                  onClick={() => openModal(event)}
+                                  className="p-2 rounded-lg hover:bg-gray-100"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Delete"
+                                  onClick={() => deleteMutation.mutate(event.id)}
+                                  className="p-2 rounded-lg hover:bg-gray-100 text-red-500"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </>
+                            )}
+                            <button type="button" className="p-2 rounded-lg hover:bg-gray-100">
+                              <MoreVertical size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
-                {isAdmin && (
-                  <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button title='admin validation' onClick={() => openModal(event)} className="p-2 bg-white/90 backdrop-blur-md rounded-xl shadow-lg hover:text-brand-medium transition-colors"><Edit2 size={16} /></button>
-                    <button title='admin deletion' onClick={() => deleteMutation.mutate(event.id)} className="p-2 bg-white/90 backdrop-blur-md rounded-xl shadow-lg hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-                  </div>
-                )}
-              </div>
-              <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-bold text-brand-dark mb-3 group-hover:text-brand-medium transition-colors leading-tight">{event.title}</h3>
-                <p className="text-sm text-gray-600 line-clamp-2 mb-6 font-medium">{event.description}</p>
-                <div className="space-y-3 mt-auto">
-                  <div className="flex items-center text-xs font-bold text-brand-deep space-x-2">
-                    <CalendarIcon size={14} className="text-brand-medium" />
-                    <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                  </div>
-                  {event.location && (
-                    <div className="flex items-center text-xs font-bold text-brand-deep space-x-2">
-                      <MapPin size={14} className="text-brand-medium" />
-                      <span>{event.location}</span>
-                    </div>
-                  )}
-                </div>
+              </tbody>
+            </table>
+          </div>
+          {filtered.length > 0 && (
+            <div className="px-4 py-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-600">
+              <p>
+                Showing {(pageSafe - 1) * PAGE_SIZE + 1} to {Math.min(pageSafe * PAGE_SIZE, filtered.length)}{' '}
+                of {filtered.length} events
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={pageSafe <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 disabled:opacity-40"
+                >
+                  &lt;
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPage(n)}
+                    className={`min-w-[36px] py-1.5 rounded-lg border text-sm font-bold ${
+                      pageSafe === n
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={pageSafe >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 disabled:opacity-40"
+                >
+                  &gt;
+                </button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
+    </>
+  );
 
-      {/* Modal */}
+  return (
+    <div className="space-y-0 font-poppins">
+      <OrgAdminPageHeader
+        title="Event Management"
+        subtitle="Create and manage organization events"
+        actions={
+          <button
+            type="button"
+            onClick={() => openModal()}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-500"
+          >
+            <Plus size={18} />
+            Create Event
+          </button>
+        }
+      />
+
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">{listBody}</div>
+
       {isModalOpen && (
-        <div className="fixed inset-0 bg-brand-dark/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-gray-100">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-xl font-black text-brand-dark tracking-tight">{editingEvent ? 'Edit Event' : 'Add New Event'}</h3>
-              <button title='model validatin' onClick={closeModal} className="p-2 hover:bg-white rounded-xl transition-colors text-gray-400 hover:text-brand-dark"><X size={20} /></button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-black text-gray-900">{editingEvent ? 'Edit Event' : 'Create Event'}</h3>
+              <button type="button" onClick={closeModal} className="p-2 rounded-lg hover:bg-gray-100">
+                <X size={20} />
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-5">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black text-brand-deep uppercase tracking-widest ml-1">Event Title</label>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Title</label>
                 <input
                   type="text"
                   required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-6 py-3.5 focus:border-brand-medium focus:ring-0 transition-all font-medium"
-                  placeholder="e.g. Annual Meeting"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black text-brand-deep uppercase tracking-widest ml-1">Description</label>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Description</label>
                 <textarea
                   required
                   rows={3}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-6 py-3.5 focus:border-brand-medium focus:ring-0 transition-all font-medium"
-                  placeholder="Tell us about the event..."
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-black text-brand-deep uppercase tracking-widest ml-1">Date</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
                   <input
-                  title='form edition'
                     type="date"
                     required
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-6 py-3.5 focus:border-brand-medium focus:ring-0 transition-all font-medium"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-black text-brand-deep uppercase tracking-widest ml-1">Location</label>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location</label>
                   <input
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-6 py-3.5 focus:border-brand-medium focus:ring-0 transition-all font-medium"
-                    placeholder="Online or Address"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
                   />
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-black text-brand-deep uppercase tracking-widest ml-1">Cover Image URL</label>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cover Image URL</label>
                 <input
                   type="text"
                   value={formData.image}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full border-2 border-gray-50 bg-gray-50 rounded-2xl px-6 py-3.5 focus:border-brand-medium focus:ring-0 transition-all font-medium text-sm"
-                  placeholder="https://example.com/image.jpg"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
                 />
               </div>
-              <div className="pt-6 flex space-x-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-6 py-4 border-2 border-gray-50 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 hover:text-brand-dark transition-all"
+                  className="flex-1 rounded-xl border border-gray-200 py-3 font-bold text-gray-600"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-brand-medium text-white rounded-2xl font-black hover:bg-brand-light transition-all shadow-xl shadow-brand-medium/20"
+                  className="flex-1 rounded-xl bg-indigo-600 py-3 font-bold text-white"
                 >
-                  {editingEvent ? 'Update' : 'Add Event'}
+                  {editingEvent ? 'Update' : 'Create'}
                 </button>
               </div>
             </form>

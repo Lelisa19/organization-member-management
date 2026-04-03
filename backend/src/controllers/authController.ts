@@ -8,7 +8,25 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, organization_name, organization_type, role } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role: roleRaw,
+      organization_name,
+      organization_type,
+      organization_id,
+    } = req.body;
+
+    const role =
+      roleRaw === 'member'
+        ? 'member'
+        : roleRaw === 'orgAdmin' || roleRaw === 'organAdmin'
+          ? 'orgAdmin'
+          : null;
+    if (!role || roleRaw === 'SuperAdmin') {
+      return res.status(400).json({ message: 'Invalid role. Register as Organization Admin or Member only.' });
+    }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -17,20 +35,57 @@ export const register = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        organization_name,
-        organization_type,
-        role: role || 'organAdmin',
-      },
-    });
+    let user;
+
+    if (role === 'orgAdmin') {
+      if (!organization_name?.trim() || !organization_type?.trim()) {
+        return res.status(400).json({ message: 'Organization name and type are required' });
+      }
+      const org = await prisma.organization.create({
+        data: {
+          name: organization_name.trim(),
+          type: organization_type.trim(),
+        },
+      });
+      user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: 'orgAdmin',
+          organizationId: org.id,
+          organization_name: org.name,
+          organization_type: org.type,
+        },
+      });
+    } else {
+      const orgId = organization_id as string | undefined;
+      if (!orgId?.trim()) {
+        return res.status(400).json({ message: 'Please select an organization' });
+      }
+      const org = await prisma.organization.findUnique({ where: { id: orgId.trim() } });
+      if (!org) {
+        return res.status(400).json({ message: 'Organization not found' });
+      }
+      user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: 'member',
+          organizationId: org.id,
+          organization_name: org.name,
+          organization_type: org.type,
+        },
+      });
+    }
 
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
 
-    res.status(201).json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    res.status(201).json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error registering user', error });
   }

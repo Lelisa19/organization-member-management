@@ -17,7 +17,7 @@ export const getDashboardStats = async (req: any, res: Response) => {
     }
 
     if (role === 'SuperAdmin') {
-      const organCount = await prisma.user.count({ where: { role: 'organAdmin' } });
+      const orgAdminCount = await prisma.user.count({ where: { role: 'orgAdmin' } });
       const memberCount = await prisma.user.count({ where: { role: 'member' } });
       const totalPayments = await prisma.payment.aggregate({
         _sum: { amount: true }
@@ -25,14 +25,14 @@ export const getDashboardStats = async (req: any, res: Response) => {
 
       return res.status(200).json({
         stats: [
-          { label: 'Total Organizations', value: organCount },
+          { label: 'Total Organizations', value: orgAdminCount },
           { label: 'Total Members', value: memberCount },
           { label: 'Total Revenue', value: `$${totalPayments._sum.amount || 0}` }
         ]
       });
     }
 
-    if (role === 'organAdmin') {
+    if (role === 'orgAdmin') {
       const orgName = user.organization_name;
       const members = await prisma.user.count({
         where: { organization_name: orgName, role: 'member' }
