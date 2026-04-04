@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { User, Plan } from '../types';
 import { Plus, Search, Filter, MoreVertical, Edit2, Trash2, X, Building, Mail, User as UserIcon } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 const AdminOrganizations: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +19,7 @@ const AdminOrganizations: React.FC = () => {
   });
 
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: organizations, isLoading: orgsLoading } = useQuery<User[]>({
     queryKey: ['admin', 'organizations'],
@@ -80,6 +82,8 @@ const AdminOrganizations: React.FC = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingOrg(null);
+    // If this modal was opened via query params, clear them so it doesn't reopen on refresh.
+    setSearchParams({});
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -90,6 +94,26 @@ const AdminOrganizations: React.FC = () => {
       createMutation.mutate(formData);
     }
   };
+
+  // Support deep-linking to the add/edit modal from other super-admin pages.
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    const editIdRaw = searchParams.get('editId');
+
+    if (mode !== 'add' && mode !== 'edit') return;
+    if (mode === 'add') {
+      openModal();
+      return;
+    }
+
+    if (mode === 'edit' && editIdRaw && organizations) {
+      const editId = Number(editIdRaw);
+      if (Number.isNaN(editId)) return;
+      const org = organizations.find((o) => o.id === editId);
+      if (org) openModal(org);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, organizations, orgsLoading]);
 
   const filteredOrgs = organizations?.filter(org =>
     org.organization_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -200,7 +224,7 @@ const AdminOrganizations: React.FC = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-bold">{editingOrg ? 'Edit Organization' : 'Add New Organization'}</h3>
               <button onClick={closeModal} title="Close"><X size={20} /></button>

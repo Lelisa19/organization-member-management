@@ -118,6 +118,7 @@ const Blogs: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 font-medium">Status:</span>
             <select
+            title='status'
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium bg-white"
@@ -130,6 +131,7 @@ const Blogs: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 font-medium">Category:</span>
             <select
+            title='category'
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium bg-white"

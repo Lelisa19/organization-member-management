@@ -3,9 +3,10 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-function requireOrgAdmin(req: any, res: Response): boolean {
-  if (req.user?.role !== 'orgAdmin') {
-    res.status(403).json({ message: 'Organization admin only' });
+function requireNotificationAccess(req: any, res: Response): boolean {
+  const role = req.user?.role;
+  if (role !== 'orgAdmin' && role !== 'SuperAdmin') {
+    res.status(403).json({ message: 'Organization admin or super admin only' });
     return false;
   }
   return true;
@@ -13,7 +14,7 @@ function requireOrgAdmin(req: any, res: Response): boolean {
 
 export const listNotifications = async (req: any, res: Response) => {
   try {
-    if (!requireOrgAdmin(req, res)) return;
+    if (!requireNotificationAccess(req, res)) return;
 
     const rows = await prisma.notification.findMany({
       where: { userId: req.user.userId },
@@ -36,7 +37,7 @@ export const listNotifications = async (req: any, res: Response) => {
 
 export const markNotificationRead = async (req: any, res: Response) => {
   try {
-    if (!requireOrgAdmin(req, res)) return;
+    if (!requireNotificationAccess(req, res)) return;
 
     const id = parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
@@ -63,7 +64,7 @@ export const markNotificationRead = async (req: any, res: Response) => {
 
 export const markAllNotificationsRead = async (req: any, res: Response) => {
   try {
-    if (!requireOrgAdmin(req, res)) return;
+    if (!requireNotificationAccess(req, res)) return;
 
     await prisma.notification.updateMany({
       where: { userId: req.user.userId, read: false },
